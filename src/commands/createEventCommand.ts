@@ -23,6 +23,12 @@ export const createEventCommand = new SlashCommandBuilder()
   )
   .addIntegerOption((option) =>
     option
+      .setName('slotsperperson')
+      .setDescription('The number of slots each person can take.')
+      .setRequired(true),
+  )
+  .addIntegerOption((option) =>
+    option
       .setName('duration')
       .setDescription('The duration of each slot in minutes')
       .setRequired(true),

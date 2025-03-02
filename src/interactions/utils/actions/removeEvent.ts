@@ -4,24 +4,9 @@ import {
   ButtonBuilder,
   ButtonStyle,
 } from 'discord.js';
-import { chunkArray } from './generalUtilities';
+import { chunkArray } from '../generalUtilities';
 
-export const handleRemoveButtonInteraction = async (
-  interaction: Interaction,
-) => {
-  if (!interaction.isButton() || interaction.customId !== 'remove') return;
-
-  const message = interaction.message;
-  const content = message.content;
-
-  // Extract slot list from the message content
-  const slotListMatch = content.match(/Slot #\d+ - <t:\d+:F>:[^\n]*/g);
-  const slotList = slotListMatch ? slotListMatch : [];
-
-  // Extract user mention
-  const userMention = `<@!${interaction.user.id}>`;
-
-  // Generate buttons for each slot that has space left
+function generateSlotButtons(slotList: string[], userMention: string, message: any) {
   const rows = [];
   let currentRow = new ActionRowBuilder<ButtonBuilder>();
 
@@ -47,25 +32,51 @@ export const handleRemoveButtonInteraction = async (
     rows.push(currentRow);
   }
 
-  if (rows.length > 0) {
-    const chunkedRows = chunkArray(rows, 5);
+  return rows;
+}
 
+function extractSlotList(content: string) {
+  const slotListMatch = content.match(/Slot #\d+ - <t:\d+:F>:[^\n]*/g);
+  return slotListMatch ? slotListMatch : [];
+}
 
-    await interaction.reply({
-      content: 'Select a slot to remove yourself from:',
-      components: chunkedRows[0],
-      ephemeral: true,
-    });
+export const handleRemoveButtonInteraction = async (
+  interaction: Interaction,
+) => {
+  if (!interaction.isButton() || interaction.customId !== 'remove') return;
 
-    for (let i = 1; i < chunkedRows.length; i++) {
-      await interaction.followUp({
-        components: chunkedRows[i],
-        ephemeral: true,
-      });
-    }
-  } else {
+  const message = interaction.message;
+  const content = message.content;
+
+  // Extract slot list from the message content
+  const slotList = extractSlotList(content);
+
+  // Extract user mention
+  const userMention = `<@!${interaction.user.id}>`;
+
+  // Generate buttons for each slot that has space left
+  const rows = generateSlotButtons(slotList, userMention, message);
+
+  // Check if they're even signed up at all.
+  if (rows.length <= 0) {
     await interaction.reply({
       content: 'You are not signed up for any slots.',
+      ephemeral: true,
+    });
+    return;
+  }
+
+  // Okay, send them the buttons to remove themselves from slots.
+  const chunkedRows = chunkArray(rows, 5);
+  await interaction.reply({
+    content: '**Select a slot to remove yourself from it.**',
+    components: chunkedRows[0],
+    ephemeral: true,
+  });
+
+  for (let i = 1; i < chunkedRows.length; i++) {
+    await interaction.followUp({
+      components: chunkedRows[i],
       ephemeral: true,
     });
   }
@@ -100,17 +111,7 @@ export const handleSlotRemovalInteraction = async (
   const content = originalMessage.content;
 
   // Extract slot list from the message content
-  const slotListMatch = content.match(/Slot #\d+ - <t:\d+:F>:[^\n]*/g);
-  const slotList = slotListMatch ? slotListMatch : [];
-
-  // Ensure the slot index is within bounds
-  if (slotIndex < 0 || slotIndex >= slotList.length) {
-    await interaction.followUp({
-      content: 'Invalid slot selected.',
-      ephemeral: true,
-    });
-    return;
-  }
+  const slotList = extractSlotList(content);
 
   // Check if the user is signed up for the specific slot
   const userMention = `<@!${interaction.user.id}>`;

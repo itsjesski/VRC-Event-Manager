@@ -22,6 +22,7 @@ export const handleCreateEvent = async (
   const startTimeUnix = options.getString('starttime', true);
   const slots = options.getInteger('slots', true);
   const peoplePerSlot = options.getInteger('peopleperslot', true);
+  const slotsPerPerson = options.getInteger('slotsperperson', true);
   const duration = options.getInteger('duration', true);
   const description = options.getString('description') || '[DESCRIPTION HERE]';
   const eventTitle = options.getString('title') || '[TITLE HERE]';
@@ -44,6 +45,7 @@ export const handleCreateEvent = async (
     startTimeUnix,
     slots,
     peoplePerSlot,
+    slotsPerPerson,
     duration,
     description,
     slotList,
