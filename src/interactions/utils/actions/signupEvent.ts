@@ -42,11 +42,11 @@ export const handleSignUpButtonInteraction = async (
   const slotListString = slotList.join('\n');
 
   // Add snapshot notice
-  const snapshotNotice = "\n\n*Click the buttons to sign up. Only the original signup list will be updated.*";
+  const snapshotNotice = "\n*For ease of use, a snapshot of the signup list is provided. However, only the original signup list will be updated when you click the buttons.*";
 
   // Reply with the slot list, snapshot notice, and the action rows
   await interaction.reply({
-    content: `**Signup:**\n\n${slotListString}${snapshotNotice}`,
+    content: `**Click the buttons below to sign up!**${snapshotNotice}\n\n${slotListString}`,
     components: rows,
     ephemeral: true,
   });

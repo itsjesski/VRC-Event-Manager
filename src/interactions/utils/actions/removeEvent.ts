@@ -69,7 +69,7 @@ export const handleRemoveButtonInteraction = async (
   // Okay, send them the buttons to remove themselves from slots.
   const chunkedRows = chunkArray(rows, 5);
   await interaction.reply({
-    content: 'Select a slot to remove yourself from:',
+    content: '**Select a slot to remove yourself from it.**',
     components: chunkedRows[0],
     ephemeral: true,
   });
