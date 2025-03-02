@@ -85,7 +85,19 @@ export const handleSlotSelectionInteraction = async (
 ) => {
   if (!interaction.isButton() || !interaction.customId.startsWith('signUpSlot_')) return;
 
-  const message = interaction.message;
+  const [_, slotIndex, originalMessageId] = interaction.customId.split('_');
+  const message = await interaction.channel?.messages.fetch(originalMessageId);
+  if (!message) {
+    await interaction.reply({
+      content: 'Error: Original message not found.',
+      ephemeral: true,
+    });
+    return;
+  }
+
+  // Convert slotIndex to a number
+  const slotIndexNumber = parseInt(slotIndex, 10);
+
   const content = message.content;
   const userMention = `<@!${interaction.user.id}>`;
 
@@ -95,52 +107,48 @@ export const handleSlotSelectionInteraction = async (
   // Extract people per slot limit
   const peoplePerSlot = extractPeoplePerSlot(content);
 
-  // Extract the slot index from the custom ID
-  const slotIndex = parseInt(interaction.customId.split('_')[1], 10);
+  // Extract slots per person limit
+  const slotsPerPerson = extractSlotsPerPerson(content);
 
   // Check if the user is already signed up for the slot
-  if (slotList[slotIndex].includes(userMention)) {
+  if (slotList[slotIndexNumber].includes(userMention)) {
     await interaction.reply({
-      content: 'You are already signed up for this slot.',
+      content: 'You are already signed up for this slot. Please select another slot.',
       ephemeral: true,
     });
     return;
   }
 
   // Check if the user has reached their slot limit
-  const slotsPerPerson = extractSlotsPerPerson(content);
   const userSlots = slotList.filter((slot) => slot.includes(userMention));
   if (userSlots.length >= slotsPerPerson) {
     await interaction.reply({
-      content: `You have reached your slot limit of ${slotsPerPerson}.`,
+      content: `You are at your slot limit! Remove yourself from a slot before signing up for another.`,
       ephemeral: true,
     });
     return;
   }
 
   // Check if the slot has space left
-  const signUps = (slotList[slotIndex].match(/<@!\d+>/g) || []).length;
+  const signUps = (slotList[slotIndexNumber].match(/<@!\d+>/g) || []).length;
   if(signUps >= peoplePerSlot) {
     await interaction.reply({
-      content: 'This slot is full.',
+      content: 'This slot is full. Please select another slot.',
       ephemeral: true,
     });
     return;
   }
 
   // Sign the user up for the slot by adding their Discord mention
-  const updatedSlot = `${slotList[slotIndex]} ${userMention}`;
-
-  // Update the slot list with the new sign-up
-  slotList[slotIndex] = updatedSlot;
+  const updatedSlot = `${slotList[slotIndexNumber]} ${userMention}`;
 
   // Update the message content by replacing the specific slot line
-  const updatedContent = content.replace(slotList[slotIndex], updatedSlot);
+  const updatedContent = content.replace(slotList[slotIndexNumber], updatedSlot);
 
   await message.edit({ content: updatedContent });
 
   await interaction.reply({
-    content: `You have signed up for slot ${slotIndex + 1}.`,
+    content: `You have signed up for slot ${slotIndexNumber + 1}.`,
     ephemeral: true,
   });
 };
