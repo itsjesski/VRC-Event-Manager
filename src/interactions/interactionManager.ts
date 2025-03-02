@@ -4,15 +4,15 @@ import {
   handleCreateEvent
 } from './events/createEvent';
 import { handleCreateEventModalSubmit } from './utils/eventsCommon';
-import { handleEditButtonInteraction } from './utils/editEvent';
+import { handleEditButtonInteraction } from './utils/actions/editEvent';
 import {
   handleRemoveButtonInteraction,
   handleSlotRemovalInteraction,
-} from './utils/removeEvent';
+} from './utils/actions/removeEvent';
 import {
   handleSignUpButtonInteraction,
   handleSlotSelectionInteraction,
-} from './utils/signupEvent';
+} from './utils/actions/signupEvent';
 import {
   handleMoonlitEvent
 } from './events/createMoonlit';

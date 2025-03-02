@@ -3,6 +3,7 @@ export function getEventTemplate(
   startTimeUnix: string,
   slots: number,
   peoplePerSlot: number,
+  slotsPerPerson: number,
   duration: number,
   description: string,
   slotList: string,
@@ -14,6 +15,7 @@ ${description ? `\n${description}\n` : ''}
 **Notes:**
 - The event starts on <t:${startTimeUnix}:F>.
 - There are ${slots} slots with ${peoplePerSlot} people per slot.
+- Each person can sign up for ${slotsPerPerson} slots.
 - Each slot lasts ${duration} minutes.
 
 **Slot Times:**
