@@ -13,12 +13,12 @@ function extractSlotList(content: string): string[] {
 
 function extractPeoplePerSlot(content: string): number {
   const peoplePerSlotMatch = content.match(/with (\d+) people per slot/);
-  return peoplePerSlotMatch ? parseInt(peoplePerSlotMatch[1], 10) : 0;
+  return peoplePerSlotMatch ? parseInt(peoplePerSlotMatch[1], 10) : 10;
 }
 
 function extractSlotsPerPerson(content: string): number {
   const slotsPerPersonMatch = content.match(/max (\d+) slots per person/);
-  return slotsPerPersonMatch ? parseInt(slotsPerPersonMatch[1], 10) : 1;
+  return slotsPerPersonMatch ? parseInt(slotsPerPersonMatch[1], 10) : 10;
 }
 
 export const handleSignUpButtonInteraction = async (
