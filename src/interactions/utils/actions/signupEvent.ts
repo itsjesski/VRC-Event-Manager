@@ -36,7 +36,7 @@ export const handleSignUpButtonInteraction = async (
   const peoplePerSlot = extractPeoplePerSlot(content);
 
   // Generate buttons for each slot that has space left
-  const rows = generateSlotButtons(slotList, peoplePerSlot, message.id);
+  const rows = generateSlotButtons(slotList, peoplePerSlot, message.id, interaction.user.id);
 
   // Construct the slot list string
   const slotListString = slotList.join('\n');
@@ -52,14 +52,17 @@ export const handleSignUpButtonInteraction = async (
   });
 };
 
-function generateSlotButtons(slotList: string[], peoplePerSlot: number, messageId: string) {
+function generateSlotButtons(slotList: string[], peoplePerSlot: number, messageId: string, userId: string) {
   const rows = [];
   let currentRow = new ActionRowBuilder<ButtonBuilder>();
+  const userMention = `<@!${userId}>`;
 
   for (let i = 0; i < slotList.length; i++) {
     const slot = slotList[i];
     const signUps = (slot.match(/<@!\d+>/g) || []).length;
-    if (signUps < peoplePerSlot) {
+
+    // Skip creating a button if the user is already signed up for the slot
+    if (signUps < peoplePerSlot && !slot.includes(userMention)) {
       const button = new ButtonBuilder()
         .setCustomId(`signUpSlot_${i}_${messageId}`)
         .setLabel(`Slot ${i + 1}`)
