@@ -12,7 +12,7 @@ export function getEventTemplate(
     **::OPERATION:: ${eventTitle}**
 ${description ? `\n${description}\n` : ''}
 
-**Notes:**
+**Details:**
 - The event starts on <t:${startTimeUnix}:F>.
 - There are ${slots} slots with ${peoplePerSlot} people per slot.
 - Each person can sign up for ${slotsPerPerson} slots.

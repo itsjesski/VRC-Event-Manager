@@ -6,7 +6,7 @@ export function getMoonlitTemplate(
   ) {
     const template = `**LAYER.// Moonlit EU/NA**
 
-**Notes:**
+**Details:**
 - The event starts on <t:${startTimeUnix}:F>.
 - There are 4 slots with 5 people per slot.
 ${leader ? `- The leader of this event is ${leader}.` : ''}
