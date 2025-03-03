@@ -17,7 +17,7 @@ function extractPeoplePerSlot(content: string): number {
 }
 
 function extractSlotsPerPerson(content: string): number {
-  const slotsPerPersonMatch = content.match(/max (\d+) slots per person/);
+  const slotsPerPersonMatch = content.match(/sign up for (\d+) slots/);
   return slotsPerPersonMatch ? parseInt(slotsPerPersonMatch[1], 10) : 10;
 }
 
