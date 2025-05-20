@@ -13,9 +13,6 @@ import {
   handleSignUpButtonInteraction,
   handleSlotSelectionInteraction,
 } from './utils/actions/signupEvent';
-import {
-  handleMoonlitEvent
-} from './events/createMoonlit';
 import{
   userIsManager
 } from './utils/roleManagement';
@@ -28,9 +25,6 @@ async function managerFunctions(interaction: Interaction) {
     if (interaction.isCommand()) {
       if (interaction.commandName === 'event') {
         await handleCreateEvent(interaction);
-        return;
-      } else if (interaction.commandName === 'moonlit') {
-        await handleMoonlitEvent(interaction);
         return;
       }
     }

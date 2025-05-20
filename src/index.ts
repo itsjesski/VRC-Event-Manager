@@ -11,7 +11,7 @@ const client = new Client({
 });
 
 client.once('ready', () => {
-  console.log('Calibot is online!');
+  console.log('Signup Bot is online!');
 });
 
 client.on('interactionCreate', async (interaction) => {
