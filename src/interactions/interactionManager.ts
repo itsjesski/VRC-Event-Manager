@@ -3,6 +3,7 @@ import { Interaction } from 'discord.js';
 import {
   handleCreateEvent
 } from './events/createEvent';
+import { handleSetManagerRole } from '../interactions/settings/setManagerRole';
 import { handleCreateEventModalSubmit } from './utils/eventsCommon';
 import { handleEditButtonInteraction } from './utils/actions/editEvent';
 import {
@@ -25,6 +26,9 @@ async function managerFunctions(interaction: Interaction) {
     if (interaction.isCommand()) {
       if (interaction.commandName === 'event') {
         await handleCreateEvent(interaction);
+        return;
+      } else if (interaction.commandName === 'setmanagerrole') {
+        await handleSetManagerRole(interaction);
         return;
       }
     }

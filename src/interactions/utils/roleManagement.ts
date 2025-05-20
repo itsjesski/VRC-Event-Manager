@@ -1,12 +1,20 @@
-import { Interaction, GuildMemberRoleManager } from "discord.js";
+import { Interaction, GuildMemberRoleManager, PermissionsBitField } from "discord.js";
+import { getManagerRoleId } from "./settings/roleSettings";
 
 export function userIsManager(interaction: Interaction) {
     const memberRoles = interaction.member?.roles;
+    const managerRoleId = getManagerRoleId();
+    
+    if (!managerRoleId) {
+      console.warn("No manager role ID configured");
+      return false;
+    }
+    
     if (
       memberRoles instanceof GuildMemberRoleManager &&
-      memberRoles.cache.has(process.env.MANAGER_ROLE_ID as string)
+      memberRoles.cache.has(managerRoleId)
     ) {
       return true;
     }
     return false;
-  }
+}

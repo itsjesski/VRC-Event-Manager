@@ -6,8 +6,8 @@ import './healthCheck'; // Import the health check server
 
 dotenv.config();
 
-// Validate environment variables
-const requiredEnvVars = ['DISCORD_TOKEN', 'DISCORD_APP_ID', 'MANAGER_ROLE_ID'];
+// Validate only essential environment variables
+const requiredEnvVars = ['DISCORD_TOKEN', 'DISCORD_APP_ID'];
 for (const envVar of requiredEnvVars) {
   if (!process.env[envVar]) {
     console.error(`Missing required environment variable: ${envVar}`);
@@ -15,6 +15,9 @@ for (const envVar of requiredEnvVars) {
   }
 }
 
+if (!process.env.MANAGER_ROLE_ID) {
+  console.warn('MANAGER_ROLE_ID not set in .env file. Use /setmanagerrole command to set it.');
+}
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],

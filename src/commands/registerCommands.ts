@@ -3,6 +3,7 @@ import * as dotenv from 'dotenv';
 
 // Imports for individual commands.
 import { createEventCommand } from './createEventCommand';
+import { setManagerRoleCommand } from './setManagerRoleCommand';
 
 dotenv.config();
 
@@ -15,7 +16,7 @@ if (!process.env.DISCORD_APP_ID) {
   throw new Error('Missing DISCORD_APP_ID in environment variables');
 }
 
-const commands = [createEventCommand].map((command) => command.toJSON());
+const commands = [createEventCommand, setManagerRoleCommand].map((command) => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
