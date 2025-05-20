@@ -6,6 +6,16 @@ import './healthCheck'; // Import the health check server
 
 dotenv.config();
 
+// Validate environment variables
+const requiredEnvVars = ['DISCORD_TOKEN', 'DISCORD_APP_ID', 'MANAGER_ROLE_ID'];
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    console.error(`Missing required environment variable: ${envVar}`);
+    process.exit(1);
+  }
+}
+
+
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
 });
