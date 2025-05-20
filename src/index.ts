@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits } from 'discord.js';
+import { Client, GatewayIntentBits, Events } from 'discord.js';
 import * as dotenv from 'dotenv';
 import { interactionManager } from './interactions/interactionManager';
 import { registerCommands } from './commands/registerCommands';
@@ -23,19 +23,34 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
 });
 
-client.once('ready', () => {
-  console.log('Signup Bot is online!');
+client.once(Events.ClientReady, async (readyClient) => {
+  console.log(`Signup Bot is online! Logged in as ${readyClient.user.tag}`);
+  
+  // Register commands after the bot is ready
+  try {
+    await registerCommands();
+    console.log('Successfully registered commands');
+  } catch (error) {
+    console.error('Failed to register commands:', error);
+  }
 });
 
-client.on('interactionCreate', async (interaction) => {
+// Handle guild join events to register commands for new servers
+client.on(Events.GuildCreate, async (guild) => {
+  console.log(`Joined new guild: ${guild.name}`);
+  try {
+    // Optional: Register commands specifically for this guild
+    // await registerCommandsForGuild(guild.id);
+  } catch (error) {
+    console.error(`Failed to register commands for guild ${guild.name}:`, error);
+  }
+});
+
+client.on(Events.InteractionCreate, async (interaction) => {
   await interactionManager(interaction);
 });
 
-// Register commands before logging in the bot
-registerCommands()
-  .then(() => {
-    client.login(process.env.DISCORD_TOKEN);
-  })
-  .catch((error) => {
-    console.error('Failed to register commands:', error);
-  });
+// Log in the bot without registering commands first
+client.login(process.env.DISCORD_TOKEN).catch((error) => {
+  console.error('Failed to log in:', error);
+});
