@@ -7,12 +7,10 @@ import { handleSetManagerRole } from '../interactions/settings/setManagerRole';
 import { handleCreateEventModalSubmit } from './utils/eventsCommon';
 import { handleEditButtonInteraction } from './utils/actions/editEvent';
 import {
-  handleRemoveButtonInteraction,
-  handleSlotRemovalInteraction,
+  handleRemoveButtonInteraction
 } from './utils/actions/removeEvent';
 import {
-  handleSignUpButtonInteraction,
-  handleSlotSelectionInteraction,
+  handleSignUpButtonInteraction
 } from './utils/actions/signupEvent';
 import{
   userIsManager
@@ -63,12 +61,8 @@ async function everyoneFunctions(interaction: Interaction) {
     if (interaction.isButton()) {
       if (interaction.customId === 'signUp') {
         await handleSignUpButtonInteraction(interaction);
-      } else if (interaction.customId.startsWith('signUpSlot_')) {
-        await handleSlotSelectionInteraction(interaction);
       } else if (interaction.customId === 'remove') {
         await handleRemoveButtonInteraction(interaction);
-      } else if (interaction.customId.startsWith('removeSlot_')) {
-        await handleSlotRemovalInteraction(interaction);
       }
     }
   } catch (error) {

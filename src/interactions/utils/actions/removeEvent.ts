@@ -1,41 +1,12 @@
 import {
   Interaction,
   ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
+  ComponentType
 } from 'discord.js';
-import { chunkArray } from '../generalUtilities';
 
-function generateSlotButtons(slotList: string[], userMention: string, message: any) {
-  const rows = [];
-  let currentRow = new ActionRowBuilder<ButtonBuilder>();
-
-  for (let i = 0; i < slotList.length; i++) {
-    const slot = slotList[i];
-    if (slot.includes(userMention)) {
-      const button = new ButtonBuilder()
-        .setCustomId(`removeSlot_${i}_${message.id}`)
-        .setLabel(`Slot ${i + 1}`)
-        .setStyle(ButtonStyle.Danger);
-      currentRow.addComponents(button);
-    }
-
-    // If the current row has 5 buttons, push it to rows and start a new row
-    if (currentRow.components.length === 5) {
-      rows.push(currentRow);
-      currentRow = new ActionRowBuilder<ButtonBuilder>();
-    }
-  }
-
-  // Push the last row if it has any buttons
-  if (currentRow.components.length > 0) {
-    rows.push(currentRow);
-  }
-
-  return rows;
-}
-
-function extractSlotList(content: string) {
+function extractSlotList(content: string): string[] {
   const slotListMatch = content.match(/Slot #\d+ - <t:\d+:F>:[^\n]*/g);
   return slotListMatch ? slotListMatch : [];
 }
@@ -47,96 +18,158 @@ export const handleRemoveButtonInteraction = async (
 
   const message = interaction.message;
   const content = message.content;
-
-  // Extract slot list from the message content
+  
+  // Extract data from message
   const slotList = extractSlotList(content);
-
-  // Extract user mention
   const userMention = `<@!${interaction.user.id}>`;
-
-  // Generate buttons for each slot that has space left
-  const rows = generateSlotButtons(slotList, userMention, message);
-
-  // Check if they're even signed up at all.
-  if (rows.length <= 0) {
+  
+  // Find which slots the user is signed up for
+  const userSlots = slotList.filter(slot => slot.includes(userMention));
+  
+  // Generate status message showing user's current signups
+  const generateStatusMessage = (userSlots: string[], allSlots: string[]) => {
+    let statusMessage = "**Your Current Signups:**\n";
+    if (userSlots.length === 0) {
+      statusMessage += "You haven't signed up for any slots yet.\n";
+    } else {
+      userSlots.forEach((slot) => {
+        const slotNumber = allSlots.indexOf(slot) + 1;
+        statusMessage += `- Slot #${slotNumber}\n`;
+      });
+    }
+    return statusMessage;
+  };
+  
+  // Check if user has any slots to remove
+  if (userSlots.length === 0) {
     await interaction.reply({
-      content: 'You are not signed up for any slots.',
-      ephemeral: true,
+      content: "You are not signed up for any slots.",
+      ephemeral: true
     });
     return;
   }
-
-  // Okay, send them the buttons to remove themselves from slots.
-  const chunkedRows = chunkArray(rows, 5);
-  await interaction.reply({
-    content: '**Select a slot to remove yourself from it.**',
-    components: chunkedRows[0],
+  
+  // Build the select menu for slots
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId(`removeSlot_${message.id}`)
+    .setPlaceholder('Select slots to remove yourself from')
+    .setMinValues(1)
+    .setMaxValues(userSlots.length);
+    
+  // Add options for user's slots
+  for (let i = 0; i < slotList.length; i++) {
+    const slot = slotList[i];
+    
+    // Only show slots the user is in
+    if (slot.includes(userMention)) {
+      selectMenu.addOptions(
+        new StringSelectMenuOptionBuilder()
+          .setLabel(`Slot ${i + 1}`)
+          .setDescription(`Remove yourself from this slot`)
+          .setValue(`${i}`)
+      );
+    }
+  }
+  
+  // Create the action row with the select menu
+  const row = new ActionRowBuilder<StringSelectMenuBuilder>()
+    .addComponents(selectMenu);
+  
+  // Send the interface as an ephemeral message
+  const response = await interaction.reply({
+    content: `${generateStatusMessage(userSlots, slotList)}\n**Select slots to remove yourself from:**\n\nYou can select multiple slots at once by clicking several of them.`,
+    components: [row],
     ephemeral: true,
+    fetchReply: true
   });
-
-  for (let i = 1; i < chunkedRows.length; i++) {
-    await interaction.followUp({
-      components: chunkedRows[i],
-      ephemeral: true,
+  
+  // Create a collector to listen for interactions
+  const collector = response.createMessageComponentCollector({ 
+    time: 60000, // Timeout after 1 minute
+    componentType: ComponentType.StringSelect,
+    max: 1 // Only collect one interaction - when they make their selections
+  });
+  
+  collector.on('collect', async i => {
+    if (!i.isStringSelectMenu()) return;
+    
+    // Get all selected slot indices
+    const selectedSlotIndices = i.values.map(value => parseInt(value, 10));
+    
+    // Get the latest message content to ensure we have current signups
+    const currentMessage = await interaction.channel?.messages.fetch(message.id);
+    if (!currentMessage) {
+      await i.update({ 
+        content: "Error: Could not find the original message. Please try again.",
+        components: [] 
+      });
+      return;
+    }
+    
+    const currentContent = currentMessage.content;
+    const currentSlotList = extractSlotList(currentContent);
+    
+    // Process all selected slots
+    let updatedContent = currentContent;
+    let successfulRemovals = 0;
+    let errorMessages = [];
+    
+    for (const slotIndex of selectedSlotIndices) {
+      const currentSlotList = extractSlotList(updatedContent);
+      const slot = currentSlotList[slotIndex];
+      
+      // Check if slot is valid
+      if (!slot) {
+        errorMessages.push(`Error: Slot #${slotIndex + 1} not found.`);
+        continue;
+      }
+      
+      // Check if user is in this slot
+      if (!slot.includes(userMention)) {
+        errorMessages.push(`You're not signed up for Slot #${slotIndex + 1}.`);
+        continue;
+      }
+      
+      // Remove the user from the slot
+      const updatedSlot = slot.replace(userMention, '').replace(/\s+/g, ' ').trim();
+      updatedContent = updatedContent.replace(slot, updatedSlot);
+      successfulRemovals++;
+    }
+    
+    // Only update the original message if we made changes
+    if (successfulRemovals > 0) {
+      await currentMessage.edit({ content: updatedContent });
+    }
+    
+    // Generate result message
+    const updatedSlotList = extractSlotList(updatedContent);
+    const remainingUserSlots = updatedSlotList.filter(slot => slot.includes(userMention));
+    const statusMessage = generateStatusMessage(remainingUserSlots, updatedSlotList);
+    
+    let resultMessage = statusMessage + "\n";
+    
+    if (successfulRemovals > 0) {
+      resultMessage += `✅ Successfully removed from ${successfulRemovals} slot${successfulRemovals !== 1 ? 's' : ''}!\n`;
+    }
+    
+    if (errorMessages.length > 0) {
+      resultMessage += "\n**Errors:**\n" + errorMessages.join("\n") + "\n";
+    }
+    
+    // Update the response
+    await i.update({ 
+      content: resultMessage,
+      components: [] 
     });
-  }
-};
-
-export const handleSlotRemovalInteraction = async (
-  interaction: Interaction,
-) => {
-  if (
-    !interaction.isButton() ||
-    !interaction.customId.startsWith('removeSlot_')
-  )
-    return;
-
-  const [_, slotIndexStr, originalMessageId] = interaction.customId.split('_');
-  const slotIndex = parseInt(slotIndexStr, 10);
-
-  // Defer the interaction to give us more time to process
-  await interaction.deferReply({ ephemeral: true });
-
-  // Fetch the original message
-  const originalMessage =
-    await interaction.channel?.messages.fetch(originalMessageId);
-  if (!originalMessage) {
-    await interaction.followUp({
-      content: 'Original message not found.',
-      ephemeral: true,
-    });
-    return;
-  }
-
-  const content = originalMessage.content;
-
-  // Extract slot list from the message content
-  const slotList = extractSlotList(content);
-
-  // Check if the user is signed up for the specific slot
-  const userMention = `<@!${interaction.user.id}>`;
-  const slot = slotList[slotIndex];
-  if (!slot.includes(userMention)) {
-    await interaction.followUp({
-      content: 'You are not signed up for this slot.',
-      ephemeral: true,
-    });
-    return;
-  }
-
-  // Remove the user from the slot
-  const updatedSlot = slot.replace(userMention, '').trim();
-
-  // Update the slot list with the removal
-  slotList[slotIndex] = updatedSlot;
-
-  // Update the message content by replacing the specific slot line
-  const updatedContent = content.replace(slot, updatedSlot);
-
-  await originalMessage.edit({ content: updatedContent });
-
-  await interaction.followUp({
-    content: `You have been removed from slot ${slotIndex + 1}.`,
-    ephemeral: true,
+  });
+  
+  collector.on('end', async collected => {
+    if (collected.size === 0) {
+      // If the collector times out without any selections
+      await interaction.editReply({
+        content: "Removal selection timed out.",
+        components: []
+      }).catch(() => {}); // Ignore errors if the message was deleted
+    }
   });
 };

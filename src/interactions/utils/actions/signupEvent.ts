@@ -1,10 +1,12 @@
 import {
   Interaction,
   ActionRowBuilder,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
+  ComponentType,
   ButtonBuilder,
   ButtonStyle
 } from 'discord.js';
-import { chunkArray } from '../generalUtilities';
 
 function extractSlotList(content: string): string[] {
   const slotListMatch = content.match(/Slot #\d+ - <t:\d+:F>:[^\n]*/g);
@@ -28,133 +30,197 @@ export const handleSignUpButtonInteraction = async (
 
   const message = interaction.message;
   const content = message.content;
-
-  // Extract slot list from the message content
+  
+  // Extract data from message
   const slotList = extractSlotList(content);
-
-  // Extract people per slot limit
   const peoplePerSlot = extractPeoplePerSlot(content);
-
-  // Generate buttons for each slot that has space left
-  const rows = generateSlotButtons(slotList, peoplePerSlot, message.id, interaction.user.id);
-
-  // Construct the slot list string
-  const slotListString = slotList.join('\n');
-
-  // Add snapshot notice
-  const snapshotNotice = "\n*For ease of use, a snapshot of the signup list is provided. However, only the original signup list will be updated when you click the buttons.*";
-
-  // Reply with the slot list, snapshot notice, and the action rows
-  await interaction.reply({
-    content: `**Click the buttons below to sign up!**${snapshotNotice}\n\n${slotListString}`,
-    components: rows,
-    ephemeral: true,
-  });
-};
-
-function generateSlotButtons(slotList: string[], peoplePerSlot: number, messageId: string, userId: string) {
-  const rows = [];
-  let currentRow = new ActionRowBuilder<ButtonBuilder>();
-  const userMention = `<@!${userId}>`;
-
-  for (let i = 0; i < slotList.length; i++) {
-    const slot = slotList[i];
-    const signUps = (slot.match(/<@!\d+>/g) || []).length;
-
-    // Skip creating a button if the user is already signed up for the slot
-    if (signUps < peoplePerSlot && !slot.includes(userMention)) {
-      const button = new ButtonBuilder()
-        .setCustomId(`signUpSlot_${i}_${messageId}`)
-        .setLabel(`Slot ${i + 1}`)
-        .setStyle(ButtonStyle.Primary);
-
-      currentRow.addComponents(button);
-
-      // If the current row has 5 buttons, push it to rows and start a new row
-      if (currentRow.components.length === 5) {
-        rows.push(currentRow);
-        currentRow = new ActionRowBuilder<ButtonBuilder>();
+  const slotsPerPerson = extractSlotsPerPerson(content);
+  const userMention = `<@!${interaction.user.id}>`;
+  
+  // Create a function to generate the select menu
+  const createMenu = (currentContent: string) => {
+    const currentSlotList = extractSlotList(currentContent);
+    const userSlots = currentSlotList.filter(slot => slot.includes(userMention));
+    
+    // Calculate how many more slots the user can sign up for
+    const slotsRemaining = slotsPerPerson - userSlots.length;
+    if (slotsRemaining <= 0) return null;
+    
+    // Build the select menu for slots
+    const selectMenu = new StringSelectMenuBuilder()
+      .setCustomId(`slotSelect_${message.id}`)
+      .setPlaceholder('Select slots to sign up for')
+      .setMinValues(1)
+      .setMaxValues(slotsRemaining); // Allow selecting up to their remaining limit
+      
+    // Add options for available slots
+    let availableSlots = 0;
+    for (let i = 0; i < currentSlotList.length; i++) {
+      const slot = currentSlotList[i];
+      const signUps = (slot.match(/<@!\d+>/g) || []).length;
+      
+      // Only show slots that have space and user isn't already in
+      if (signUps < peoplePerSlot && !slot.includes(userMention)) {
+        selectMenu.addOptions(
+          new StringSelectMenuOptionBuilder()
+            .setLabel(`Slot ${i + 1}`)
+            .setDescription(`${signUps}/${peoplePerSlot} people signed up`)
+            .setValue(`${i}`)
+        );
+        availableSlots++;
       }
     }
-  }
-
-  // Push the last row if it has any buttons
-  if (currentRow.components.length > 0) {
-    rows.push(currentRow);
-  }
-
-  return rows;
-}
-
-export const handleSlotSelectionInteraction = async (
-  interaction: Interaction,
-) => {
-  if (!interaction.isButton() || !interaction.customId.startsWith('signUpSlot_')) return;
-
-  const [_, slotIndex, originalMessageId] = interaction.customId.split('_');
-  const message = await interaction.channel?.messages.fetch(originalMessageId);
-  if (!message) {
+    
+    if (availableSlots === 0) return null;
+    
+    return { 
+      menu: selectMenu, 
+      availableSlots, 
+      userSlots,
+      slotsRemaining
+    };
+  };
+  
+  // Get menu state
+  const menuState = createMenu(content);
+  
+  // Generate status message showing user's current signups
+  const generateStatusMessage = (userSlots: string[], allSlots: string[]) => {
+    let statusMessage = "**Your Current Signups:**\n";
+    if (userSlots.length === 0) {
+      statusMessage += "You haven't signed up for any slots yet.\n";
+    } else {
+      userSlots.forEach((slot) => {
+        const slotNumber = allSlots.indexOf(slot) + 1;
+        statusMessage += `- Slot #${slotNumber}\n`;
+      });
+    }
+    return statusMessage;
+  };
+  
+  // Check if user can sign up for slots
+  if (!menuState || menuState.slotsRemaining <= 0) {
     await interaction.reply({
-      content: 'Error: Original message not found.',
-      ephemeral: true,
+      content: `You've reached your limit of ${slotsPerPerson} slots! Remove yourself from a slot before signing up for another.`,
+      ephemeral: true
     });
     return;
   }
-
-  // Convert slotIndex to a number
-  const slotIndexNumber = parseInt(slotIndex, 10);
-
-  const content = message.content;
-  const userMention = `<@!${interaction.user.id}>`;
-
-  // Extract slot list from the message content
-  const slotList = extractSlotList(content);
-
-  // Extract people per slot limit
-  const peoplePerSlot = extractPeoplePerSlot(content);
-
-  // Extract slots per person limit
-  const slotsPerPerson = extractSlotsPerPerson(content);
-
-  // Check if the user is already signed up for the slot
-  if (slotList[slotIndexNumber].includes(userMention)) {
+  
+  if (!menuState.menu || menuState.availableSlots === 0) {
     await interaction.reply({
-      content: 'You are already signed up for this slot. Please select another slot.',
-      ephemeral: true,
+      content: "There are no available slots you can sign up for.",
+      ephemeral: true
     });
     return;
   }
-
-  // Check if the user has reached their slot limit
-  const userSlots = slotList.filter((slot) => slot.includes(userMention));
-  if (userSlots.length >= slotsPerPerson) {
-    await interaction.reply({
-      content: `You are at your slot limit! Remove yourself from a slot before signing up for another.`,
-      ephemeral: true,
-    });
-    return;
-  }
-
-  // Check if the slot has space left
-  const signUps = (slotList[slotIndexNumber].match(/<@!\d+>/g) || []).length;
-  if(signUps >= peoplePerSlot) {
-    await interaction.reply({
-      content: 'This slot is full. Please select another slot.',
-      ephemeral: true,
-    });
-    return;
-  }
-
-  // Sign the user up for the slot by adding their Discord mention
-  const updatedSlot = `${slotList[slotIndexNumber]} ${userMention}`;
-
-  // Update the message content by replacing the specific slot line
-  const updatedContent = content.replace(slotList[slotIndexNumber], updatedSlot);
-
-  await message.edit({ content: updatedContent });
-
-  await interaction.reply({
-    content: `You have signed up for slot ${slotIndexNumber + 1}.`,
+  
+  // Create the action row with the select menu
+  const row = new ActionRowBuilder<StringSelectMenuBuilder>()
+    .addComponents(menuState.menu);
+  
+  // Send the interface as an ephemeral message
+  const response = await interaction.reply({
+    content: `${generateStatusMessage(menuState.userSlots, slotList)}\n**Select slots to sign up for:**\n\nYou can select up to ${menuState.slotsRemaining} more slots. You can choose multiple slots at once by clicking several options.`,
+    components: [row],
     ephemeral: true,
+    fetchReply: true
+  });
+  
+  // Create a collector to listen for interactions
+  const collector = response.createMessageComponentCollector({ 
+    time: 60000, // Timeout after 1 minute
+    componentType: ComponentType.StringSelect,
+    max: 1 // Only collect one interaction - when they make their selections
+  });
+  
+  collector.on('collect', async i => {
+    if (!i.isStringSelectMenu()) return;
+    
+    // Get all selected slot indices
+    const selectedSlotIndices = i.values.map(value => parseInt(value, 10));
+    
+    // Get the latest message content to ensure we have current signups
+    const currentMessage = await interaction.channel?.messages.fetch(message.id);
+    if (!currentMessage) {
+      await i.update({ 
+        content: "Error: Could not find the original message. Please try again.",
+        components: [] 
+      });
+      return;
+    }
+    
+    const currentContent = currentMessage.content;
+    const currentSlotList = extractSlotList(currentContent);
+    
+    // Process all selected slots
+    let updatedContent = currentContent;
+    let successfulSignups = 0;
+    let errorMessages = [];
+    
+    for (const slotIndex of selectedSlotIndices) {
+      const currentSlotList = extractSlotList(updatedContent);
+      const slot = currentSlotList[slotIndex];
+      
+      // Check if slot is valid
+      if (!slot) {
+        errorMessages.push(`Error: Slot #${slotIndex + 1} not found.`);
+        continue;
+      }
+      
+      // Check if slot is full
+      const signUps = (slot.match(/<@!\d+>/g) || []).length;
+      if (signUps >= peoplePerSlot) {
+        errorMessages.push(`Slot #${slotIndex + 1} is full.`);
+        continue;
+      }
+      
+      // Check if user is already in this slot
+      if (slot.includes(userMention)) {
+        errorMessages.push(`You're already signed up for Slot #${slotIndex + 1}.`);
+        continue;
+      }
+      
+      // Update the slot with the user mention
+      const updatedSlot = `${slot} ${userMention}`;
+      updatedContent = updatedContent.replace(slot, updatedSlot);
+      successfulSignups++;
+    }
+    
+    // Only update the original message if we made changes
+    if (successfulSignups > 0) {
+      await currentMessage.edit({ content: updatedContent });
+    }
+    
+    // Generate result message
+    const updatedSlotList = extractSlotList(updatedContent);
+    const userSlots = updatedSlotList.filter(slot => slot.includes(userMention));
+    const statusMessage = generateStatusMessage(userSlots, updatedSlotList);
+    
+    let resultMessage = statusMessage + "\n";
+    
+    if (successfulSignups > 0) {
+      resultMessage += `✅ Successfully signed up for ${successfulSignups} slot${successfulSignups !== 1 ? 's' : ''}!\n`;
+    }
+    
+    if (errorMessages.length > 0) {
+      resultMessage += "\n**Errors:**\n" + errorMessages.join("\n") + "\n";
+    }
+    
+    // Update the response
+    await i.update({ 
+      content: resultMessage,
+      components: [] 
+    });
+  });
+  
+  collector.on('end', async collected => {
+    if (collected.size === 0) {
+      // If the collector times out without any selections
+      await interaction.editReply({
+        content: "Signup selection timed out.",
+        components: []
+      }).catch(() => {}); // Ignore errors if the message was deleted
+    }
   });
 };
