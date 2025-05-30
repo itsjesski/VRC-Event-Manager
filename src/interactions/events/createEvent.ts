@@ -74,10 +74,18 @@ export const handleCreateEvent = async (
     await interaction.showModal(modal);
   } catch (error) {
     console.error('Error handling create event:', error);
-    await interaction.editReply({
-      content: 'An error occurred while creating the event. Please try again later.',
-    });
-    return;
+    
+    // Only reply if we haven't already
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({
+        content: 'An error occurred while creating the event. Please try again later.',
+        ephemeral: true
+      });
+    } else if (interaction.deferred) {
+      await interaction.editReply({
+        content: 'An error occurred while creating the event. Please try again later.',
+      });
+    }
   }
   
 };
