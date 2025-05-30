@@ -23,6 +23,15 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
 });
 
+// General Global Error Handling
+process.on('unhandledRejection', (error) => {
+  console.error('Unhandled promise rejection:', error);
+});
+client.on('error', (error) => {
+  console.error('Discord client error:', error);
+});
+
+// Log in and register commands
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Signup Bot is online! Logged in as ${readyClient.user.tag}`);
   
@@ -38,12 +47,6 @@ client.once(Events.ClientReady, async (readyClient) => {
 // Handle guild join events to register commands for new servers
 client.on(Events.GuildCreate, async (guild) => {
   console.log(`Joined new guild: ${guild.name}`);
-  try {
-    // Optional: Register commands specifically for this guild
-    // await registerCommandsForGuild(guild.id);
-  } catch (error) {
-    console.error(`Failed to register commands for guild ${guild.name}:`, error);
-  }
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {

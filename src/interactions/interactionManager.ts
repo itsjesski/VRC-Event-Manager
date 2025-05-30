@@ -83,10 +83,24 @@ async function everyoneFunctions(interaction: Interaction) {
 }
 
 export const interactionManager = async (interaction: Interaction) => {
+  // Check if it's a command that requires manager permissions
+  const requiresManager = 
+    interaction.isCommand() && 
+    (interaction.commandName === 'event');
+  
   // Check to see if we should load manager items.
   if (userIsManager(interaction)) {
     await managerFunctions(interaction);
     await everyoneFunctions(interaction);
+    return;
+  } else if (requiresManager) {
+    // Tell the user they don't have permission
+    if (interaction.isRepliable()) {
+      await interaction.reply({
+        content: 'You don\'t have permission to use this command. You need the manager role.',
+        ephemeral: true
+      });
+    }
     return;
   }
 
