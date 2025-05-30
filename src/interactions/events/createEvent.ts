@@ -17,9 +17,6 @@ export const handleCreateEvent = async (
 ) => {
   if (!interaction.isCommand()) return;
 
-  // Add a deferred reply in case the processing takes too long
-  await interaction.deferReply({ ephemeral: true });
-
   try {
     const options =
     interaction.options as CommandInteractionOptionResolver<CacheType>;
@@ -70,7 +67,6 @@ export const handleCreateEvent = async (
       new ActionRowBuilder<TextInputBuilder>().addComponents(templateInput),
     );
 
-    await interaction.deleteReply();
     await interaction.showModal(modal);
   } catch (error) {
     console.error('Error handling create event:', error);
