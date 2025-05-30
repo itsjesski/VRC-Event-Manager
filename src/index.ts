@@ -50,7 +50,23 @@ client.on(Events.GuildCreate, async (guild) => {
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
-  await interactionManager(interaction);
+  try {
+    console.log(`Received interaction: ${interaction.type} from ${interaction.user.tag}`);
+    await interactionManager(interaction);
+  } catch (error) {
+    console.error('Error handling interaction:', error);
+    // Try to reply with an error message if we haven't already
+    if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
+      try {
+        await interaction.reply({
+          content: 'An error occurred while processing your request.',
+          ephemeral: true
+        });
+      } catch (replyError) {
+        console.error('Failed to send error reply:', replyError);
+      }
+    }
+  }
 });
 
 // Log in the bot without registering commands first
